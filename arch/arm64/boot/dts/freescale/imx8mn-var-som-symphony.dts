@@ -18,24 +18,23 @@
 		stdout-path = &uart4;
 	};
 
+#if defined(METICULOUS_BACKLIGHT_PWM)
 	backlight: backlight {
 		compatible = "pwm-backlight";
-		pwms = <&pwm1 0 500000 PWM_POLARITY_INVERTED>;
-		brightness-levels = < 0 0 1  2  3  4  5  6  7  8  9
-				     10 11 12 13 14 15 16 17 18 19
-				     20 21 22 23 24 25 26 27 28 29
-				     30 31 32 33 34 35 36 37 38 39
-				     40 41 42 43 44 45 46 47 48 49
-				     50 51 52 53 54 55 56 57 58 59
-				     60 61 62 63 64 65 66 67 68 69
-				     70 71 72 73 74 75 76 77 78 79
-				     80 81 82 83 84 85 86 87 88 89
-				     90 91 92 93 94 95 96 97 98 99
-				    100>;
-		default-brightness-level = <101>; // Index into the array above, not the necessarily actual value
+		pwms = <&pwm2 0 500000 0>;
 		status = "okay";
 	};
+#elseif defined(METICULOUS_BACKLIGHT_GPIO)
+	backlight: backlight {
+		compatible = "gpio-backlight";
+		gpios = <&gpio5 20 GPIO_ACTIVE_HIGH>;
+		status = "okay";
+		pinctrl-0 = <&pinctrl_mipi_dsi_en>;
+		pinctrl-names = "default";
+		default-on;
+	};
 
+#endif
 	gpio-keys {
 		compatible = "gpio-keys";
 		status = "okay";
@@ -91,6 +90,7 @@
 	};
 };
 
+
 &iomuxc {
 	pinctrl_captouch: captouchgrp {
 		fsl,pins = <
@@ -111,11 +111,25 @@
 			MX8MN_IOMUXC_I2C2_SDA_I2C2_SDA			0x400001c3
 		>;
 	};
+	
+#ifdef METICULOUS_BACKLIGHT_GPIO
 
-	pinctrl_i2c4: i2c4grp {
+	pinctrl_mipi_dsi_en: mipi_dsi_en {
 		fsl,pins = <
-			MX8MN_IOMUXC_I2C4_SCL_I2C4_SCL			0x400001c3
-			MX8MN_IOMUXC_I2C4_SDA_I2C4_SDA			0x400001c3
+			MX8MN_IOMUXC_I2C4_SCL_GPIO5_IO20		0x6
+		>;
+	};
+#elseie METICULOUS_BACKLIGHT_PWM
+	pinctrl_mipi_dsi_en_pwm2: pwm2grp {
+		fsl,pins = <
+			MX8MN_IOMUXC_I2C4_SCL_PWM2_OUT		0x06
+		>;
+	};
+#endif
+
+	pinctrl_mipi_dsi_rst: mipi_dsi_rst {
+		fsl,pins = <
+			MX8MN_IOMUXC_I2C4_SDA_GPIO5_IO21		0x6
 		>;
 	};
 
@@ -123,13 +137,6 @@
 		fsl,pins = <
 			MX8MN_IOMUXC_I2C2_SCL_GPIO5_IO16		0x1c3
 			MX8MN_IOMUXC_I2C2_SDA_GPIO5_IO17		0x1c3
-		>;
-	};
-
-	pinctrl_i2c4_gpio: i2c4grp-gpio {
-		fsl,pins = <
-			MX8MN_IOMUXC_I2C4_SCL_GPIO5_IO20		0x1c3
-			MX8MN_IOMUXC_I2C4_SDA_GPIO5_IO21		0x1c3
 		>;
 	};
 
@@ -217,12 +224,6 @@
 	pinctrl_extcon: extcongrp {
 		fsl,pins = <
 			MX8MN_IOMUXC_GPIO1_IO11_GPIO1_IO11		0x16
-		>;
-	};
-
-	pinctrl_mipi_dsi: mipigrp {
-		fsl,pins = <
-			MX8MN_IOMUXC_SAI2_RXFS_GPIO4_IO21		0x41
 		>;
 	};
 };
@@ -354,13 +355,7 @@
 };
 
 &i2c4 {
-	clock-frequency = <400000>;
-	pinctrl-names = "default", "gpio";
-	pinctrl-0 = <&pinctrl_i2c4>;
-	pinctrl-1 = <&pinctrl_i2c4_gpio>;
-	scl-gpios = <&gpio5 20 GPIO_ACTIVE_HIGH>;
-	sda-gpios = <&gpio5 21 GPIO_ACTIVE_HIGH>;
-	status = "okay";
+	status = "disabled";
 };
 
 &mipi_csi_1 {
@@ -402,11 +397,12 @@
 		#size-cells = <0>;
 		compatible = "kingway,hw-021p0z002-01", "sitronix,st7701";
 		reg = <0>;
-		reset-gpios = <&gpio4 21 GPIO_ACTIVE_HIGH>;
+		reset-gpios = <&gpio5 21 GPIO_ACTIVE_HIGH>;
 		pinctrl-names = "default";
-		pinctrl-0 = <&pinctrl_mipi_dsi>;
+		pinctrl-0 = <&pinctrl_mipi_dsi_rst>;
+#if defined(METICULOUS_BACKLIGHT_PWM) || defined(METICULOUS_BACKLIGHT_GPIO)
 		backlight = <&backlight>;
-
+#endif
 		port@0 {
 			reg = <0>;
 			panel_in_dsi: endpoint {
@@ -424,6 +420,15 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_pwm1>;
 };
+
+#ifdef METICULOUS_BACKLIGHT_PWM
+&pwm2 {
+	#pwm-cells = <3>;
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_mipi_dsi_en_pwm2>;
+};
+#endif
 
 &snvs_pwrkey {
 	status = "okay";
