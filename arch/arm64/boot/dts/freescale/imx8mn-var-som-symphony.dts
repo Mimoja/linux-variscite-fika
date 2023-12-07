@@ -381,7 +381,7 @@
 };
 
 &wdog1 {
-	status = "disabled";
+	status = "okay";
 };
 
 &lcdif {
